@@ -3,8 +3,8 @@ Contributors: 2winfactor, wpcrafter
 Donate link: https://prestoplayer.com
 Tags: video, audio, youtube, vimeo, lms, elementor, learndash, beaver builder, lifterlms
 Requires at least: 6.3
-Tested up to: 6.8
-Stable tag: 4.0.0
+Tested up to: 6.9
+Stable tag: 4.0.4
 Requires PHP: 7.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -156,9 +156,32 @@ You can report the issue through our [Bug Bounty Program](https://brainstormforc
 
 == Changelog ==
 
+= 4.0.4 = 
+* Fix: Update popup assets for WordPress 6.9 compatibility.
+
+= 4.0.3 =
+* New: You can now use the "ratio" parameter in the Presto Player shortcode to control the video’s aspect ratio.
+* Fix: Resolved an issue where muted previews incorrectly played with sound when Lazy Load YouTube was enabled.
+* Fix: The “Remove all data on uninstall” option now correctly clears all Presto Player data, including Media Hub videos, when uninstalling the plugin.
+* Fix: Bunny CDN thumbnails were not automatically reflected in videos.
+* Fix: PHP warnings.
+
+= 4.0.2 =
+* Fix: Fullscreen mode not working on Safari in some instances.
+* Fix: PHP notices related to translations loading before init hook.
+
+= 4.0.1 =
+* Fix: Improved error handling for popup image trigger block transformations
+* Fix: Unnecessary requests when edit post pages.
+
 = 4.0.0 =
 * New: Presto Popups! [Learn More](https://prestoplayer.com/docs/presto-popups)
 * Improvement: Presto player has been rewritten to be more compatible with page builder popups and ajax loaded content.
+
+= 3.1.3 =
+* Change: Streamlined branding settings by removing the unused opacity option for better clarity and consistency.
+* Fix: Disabled autoplay for Vimeo playlists on iOS to prevent videos from starting muted after user interaction.
+* Fix: PHP warnings.
 
 = 3.1.2 =
 * Improvement: Added security vulnerability reporting guidelines to FAQ section.

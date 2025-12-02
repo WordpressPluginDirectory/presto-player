@@ -29,13 +29,6 @@ class Block {
 	protected $name = '';
 
 	/**
-	 * The translated block title
-	 *
-	 * @var string
-	 */
-	protected $title = 'Video';
-
-	/**
 	 * The template name
 	 *
 	 * @var string
@@ -132,7 +125,7 @@ class Block {
 	 * @return void
 	 */
 	public function register() {
-		$this->registerBlockType();
+		add_action( 'init', array( $this, 'registerBlockType' ) );
 	}
 
 	/**
@@ -142,6 +135,20 @@ class Block {
 	 */
 	public function additionalAttributes() {
 		return array();
+	}
+
+	/**
+	 * Get the block title from block.json
+	 *
+	 * @return string
+	 */
+	public function getBlockTitle() {
+		// Try to get the title from block.json metadata.
+		$block_type = \WP_Block_Type_Registry::get_instance()->get_registered( "presto-player/{$this->name}" );
+		if ( $block_type && ! empty( $block_type->title ) ) {
+			return $block_type->title;
+		}
+		return '';
 	}
 
 	/**
@@ -212,8 +219,10 @@ class Block {
 			$preset       = $this->getAudioPreset( ! empty( $attributes['preset'] ) ? $attributes['preset'] : 0 );
 			$preset->type = 'audio';
 		} else {
-			$preset = $this->getPreset( ! empty( $attributes['preset'] ) ? $attributes['preset'] : 0 );
+			$preset = $this->getPreset( ! empty( $attributes['preset'] ) ? $attributes['preset'] : 0, $attributes );
 		}
+
+		// Apply server-side overrides that depend on block attributes.
 		$branding     = $this->getBranding( $preset );
 		$class        = $this->getClasses( $attributes );
 		$player_class = $this->getPlayerClasses( $id, $preset, $attributes );
@@ -232,7 +241,7 @@ class Block {
 			'presto_player/block/default_attributes',
 			array(
 				'type'            => $this->name,
-				'name'            => $this->title,
+				'name'            => $this->getBlockTitle(),
 				'css'             => wp_kses_post( $css ),
 				'class'           => $class,
 				'is_hls'          => $this->isHls( $src ),
@@ -305,7 +314,7 @@ class Block {
 	 * @param  integer $id Preset ID.
 	 * @return \PrestoPlayer\Models\Preset
 	 */
-	public function getPreset( $id ) {
+	public function getPreset( $id, $attributes = array() ) {
 		$preset    = new Preset( ! empty( $id ) ? $id : 0 );
 		$preset_id = $preset->id;
 
@@ -320,6 +329,13 @@ class Block {
 			);
 
 			$preset->watermark = wp_parse_args( $watermark_text, $preset->watermark );
+		}
+
+		// If lazy load is enabled, disable it if muted preview or autoplay is enabled.
+		if ( $preset->lazy_load_youtube ) {
+			$has_muted_preview         = isset( $attributes['mutedPreview']['enabled'] ) && ! empty( $attributes['mutedPreview']['enabled'] );
+			$has_autoplay              = ! empty( $attributes['autoplay'] );
+			$preset->lazy_load_youtube = ! ( $has_muted_preview || $has_autoplay );
 		}
 
 		return apply_filters( 'presto_player/presto_player_presets/data', $preset, 'video' );
