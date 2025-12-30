@@ -4,7 +4,7 @@ Donate link: https://prestoplayer.com
 Tags: video, audio, youtube, vimeo, lms, elementor, learndash, beaver builder, lifterlms
 Requires at least: 6.3
 Tested up to: 6.9
-Stable tag: 4.0.4
+Stable tag: 4.0.7
 Requires PHP: 7.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -155,6 +155,17 @@ You can report the issue through our [Bug Bounty Program](https://brainstormforc
 
 
 == Changelog ==
+
+= 4.0.7 =
+* Fix: Missing text domain for strings.
+* Fix: Resolved an issue with improper escaping of dynamic attribute values in markup output.
+
+= 4.0.6 =
+* Fix: Fixed an issue where search results could redirect to a 404 if the search results included a Media Hub item with Instant Video Pages disabled.
+* Fix: Corrected help text for call to action settings under video preset settings.
+
+= 4.0.5 = 
+* Fix: Fixed an issue preventing certain Presto settings pages from loading correctly in the WordPress admin.
 
 = 4.0.4 = 
 * Fix: Update popup assets for WordPress 6.9 compatibility.

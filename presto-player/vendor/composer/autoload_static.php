@@ -11,43 +11,43 @@ class ComposerStaticInitf0d4df1d358f3bff79b6ed90bd0bf6af
     );
 
     public static $prefixLengthsPsr4 = array (
-        'T' => 
+        'T' =>
         array (
             'TypistTech\\Imposter\\Plugin\\' => 27,
             'TypistTech\\Imposter\\' => 20,
         ),
-        'P' => 
+        'P' =>
         array (
             'PrestoPlayer\\' => 13,
         ),
-        'D' => 
+        'D' =>
         array (
             'Dice\\' => 5,
         ),
-        'C' => 
+        'C' =>
         array (
             'Composer\\Installers\\' => 20,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'TypistTech\\Imposter\\Plugin\\' => 
+        'TypistTech\\Imposter\\Plugin\\' =>
         array (
             0 => __DIR__ . '/..' . '/typisttech/imposter-plugin/src',
         ),
-        'TypistTech\\Imposter\\' => 
+        'TypistTech\\Imposter\\' =>
         array (
             0 => __DIR__ . '/..' . '/typisttech/imposter/src',
         ),
-        'PrestoPlayer\\' => 
+        'PrestoPlayer\\' =>
         array (
             0 => __DIR__ . '/../..' . '/inc',
         ),
-        'Dice\\' => 
+        'Dice\\' =>
         array (
             0 => __DIR__ . '/..' . '/level-2/dice',
         ),
-        'Composer\\Installers\\' => 
+        'Composer\\Installers\\' =>
         array (
             0 => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers',
         ),
