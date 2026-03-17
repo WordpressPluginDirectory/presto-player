@@ -51,6 +51,7 @@ return array(
 		\PrestoPlayer\Integrations\Lifter\Lifter::class,
 
 		// Services.
+		\PrestoPlayer\Services\NpsSurvey::class,
 		\PrestoPlayer\Services\Migrations::class,
 		\PrestoPlayer\Services\Translation::class,
 		\PrestoPlayer\Services\Player::class,
@@ -62,6 +63,7 @@ return array(
 		\PrestoPlayer\Services\VideoPostType::class,
 		\PrestoPlayer\Services\ReusableVideos::class,
 		\PrestoPlayer\Services\AdminNotices::class,
+		\PrestoPlayer\Services\Usage::class,
 		\PrestoPlayer\Services\ProCompatibility::class,
 		\PrestoPlayer\Services\Compatibility::class,
 		\PrestoPlayer\Services\AjaxActions::class,
