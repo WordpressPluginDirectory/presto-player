@@ -6,6 +6,7 @@ import { useSelect } from "@wordpress/data";
 import {
   ColorPicker,
   ComboboxControl,
+  ExternalLink,
   ToggleControl,
   RangeControl,
   Spinner,
@@ -108,6 +109,12 @@ export default () => {
       ...data,
     });
   };
+
+  const [usageTracking, setUsageTracking] = useEntityProp(
+    "root",
+    "site",
+    "presto-player_usage_optin"
+  );
 
   const [uninstall, setUninstall] = useEntityProp(
     "root",
@@ -297,7 +304,7 @@ export default () => {
 
           {!!analytics?.enable && (
             <ToggleControl
-              label={__("Auto-Purge Data (recommended)")}
+              label={__("Auto-Purge Data (recommended)", "presto-player")}
               help={__(
                 "Automatically purge data older than 90 days.",
                 "presto-player"
@@ -397,6 +404,29 @@ export default () => {
             }
             updateUninstall({ uninstall_data });
           }}
+        />
+      </Group>
+      <Group
+        title={__("Contribute", "presto-player")}
+        description={
+          <div>
+            {__(
+              "Share how you use the plugin so we can build features that matter, fix issues faster, and make smarter decisions.",
+              "presto-player"
+            )}{" "}
+            <ExternalLink href="https://prestoplayer.com/share-usage-data/">
+              {__("Learn More", "presto-player")}
+            </ExternalLink>
+          </div>
+        }
+      >
+        <ToggleControl
+          className="presto-player__setting--usage-tracking"
+          label={__("Help shape the future of Presto Player", "presto-player")}
+          checked={usageTracking === "yes" || usageTracking === true}
+          onChange={(enabled) =>
+            setUsageTracking(enabled ? "yes" : "no")
+          }
         />
       </Group>
     </Page>
