@@ -1,4 +1,9 @@
 <?php
+/**
+ * Reusable Video Model.
+ *
+ * @package PrestoPlayer\Models
+ */
 
 namespace PrestoPlayer\Models;
 
@@ -42,6 +47,8 @@ class ReusableVideo {
 	 */
 	public function __construct( $id = 0 ) {
 		$this->post = \get_post( $id );
+		// TODO: remove this no-op return; kept temporarily to avoid changing constructor contract in a patch release.
+		// phpcs:ignore Universal.CodeAnalysis.ConstructorDestructorReturn.ReturnValueFound
 		return $this;
 	}
 
@@ -142,6 +149,26 @@ class ReusableVideo {
 	}
 
 	/**
+	 * Get the WordPress post status of the underlying Media Hub item.
+	 *
+	 * Returns the raw post_status string (e.g. `publish`, `private`, `draft`)
+	 * when the loaded post is a Media Hub item, or null when the post is
+	 * missing or of a different type. Callers decide policy from the value;
+	 * this method is intentionally data-only.
+	 *
+	 * @return string|null
+	 */
+	public function getMediaHubPostVisibility() {
+		if ( ! $this->post ) {
+			return null;
+		}
+		if ( $this->post_type !== $this->post->post_type ) {
+			return null;
+		}
+		return $this->post->post_status;
+	}
+
+	/**
 	 * Get attributes from the block
 	 *
 	 * @param array $overrides Attributes to override.
@@ -154,10 +181,10 @@ class ReusableVideo {
 			return '';
 		}
 
-		// allow overriding attributes
+		// Allow overriding attributes.
 		$block['attrs'] = wp_parse_args( $overrides, (array) $block['attrs'] );
 
-		// maybe switch provider depending on url
+		// Maybe switch provider depending on url.
 		if ( ! empty( $overrides ) ) {
 			$block = $this->maybeSwitchProvider( $block );
 		}
@@ -196,10 +223,10 @@ class ReusableVideo {
 			return '';
 		}
 
-		// allow overriding attributes
+		// Allow overriding attributes.
 		$block['attrs'] = wp_parse_args( $overrides, (array) $block['attrs'] );
 
-		// maybe switch provider depending on url
+		// Maybe switch provider depending on url.
 		$block = $this->maybeSwitchProvider( $block );
 
 		// remove attachment_id if the src changes.
@@ -272,7 +299,7 @@ class ReusableVideo {
 	/**
 	 * Get reusable video block function.
 	 *
-	 * @return $content The content of the block.
+	 * @return string The content of the block.
 	 */
 	public function content() {
 		return ! empty( $this->post->post_content ) ? $this->post->post_content : '';
@@ -328,5 +355,182 @@ class ReusableVideo {
 		}
 		$config = get_option( self::INSTANT_VIDEO_WIDTH_SETTING_KEY, '800px' );
 		return ! empty( $config ) ? $config : '800px';
+	}
+
+	/**
+	 * Duplicate the media post, including taxonomies, thumbnail, and meta.
+	 *
+	 * @return array|\WP_Error {
+	 *     Duplication result or WP_Error on failure.
+	 *
+	 *     @type int $new_post_id  ID of the newly created post.
+	 *     @type int $thumbnail_id Thumbnail ID copied from the original post.
+	 * }
+	 */
+	public function duplicate() {
+		if ( empty( $this->post->ID ) ) {
+			return new \WP_Error( 'invalid_post', __( 'Invalid post ID.', 'presto-player' ) );
+		}
+
+		// Prepare new post data.
+		$new_post_args = array(
+			'post_title'     => isset( $this->post->post_title ) ? $this->post->post_title . ' - Copy' : '',
+			'post_type'      => $this->post->post_type,
+			'post_status'    => 'draft',
+			'post_author'    => get_current_user_id(),
+			'post_content'   => $this->post->post_content ?? '',
+			'post_excerpt'   => $this->post->post_excerpt ?? '',
+			'comment_status' => $this->post->comment_status ?? 'open',
+			'ping_status'    => $this->post->ping_status ?? 'open',
+			'page_template'  => get_post_meta( $this->post->ID, '_wp_page_template', true ),
+		);
+
+		$new_post_id = wp_insert_post( wp_slash( $new_post_args ), true );
+
+		if ( is_wp_error( $new_post_id ) ) {
+			return new \WP_Error(
+				'failed_duplicate',
+				__( 'Failed to duplicate.', 'presto-player' )
+			);
+		}
+
+		// Copy taxonomy terms using slugs.
+		$this->copyTaxonomies( $new_post_id );
+
+		// Copy featured image.
+		$thumbnail_id = $this->copyThumbnail( $new_post_id );
+
+		// Copy post meta except for editor-specific keys.
+		$this->copyMeta( $new_post_id );
+
+		return array(
+			'new_post_id'  => $new_post_id,
+			'thumbnail_id' => $thumbnail_id,
+		);
+	}
+
+	/**
+	 * Copy taxonomy terms from the original media to the duplicated one.
+	 *
+	 * @param int $new_post_id New post ID.
+	 *
+	 * @return void
+	 */
+	protected function copyTaxonomies( $new_post_id ) {
+		$taxonomies = get_object_taxonomies( $this->post->post_type ?? '' );
+
+		foreach ( $taxonomies as $taxonomy ) {
+			$terms = wp_get_object_terms(
+				$this->post->ID,
+				$taxonomy,
+				array(
+					'fields' => 'slugs',
+				)
+			);
+
+			if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+				wp_set_object_terms( $new_post_id, $terms, $taxonomy );
+			}
+		}
+	}
+
+	/**
+	 * Copy the featured image from the original media to the duplicated one.
+	 *
+	 * @param int $new_post_id New post ID.
+	 *
+	 * @return int Thumbnail ID if one was copied, otherwise 0.
+	 */
+	protected function copyThumbnail( $new_post_id ) {
+		$thumbnail_id = get_post_thumbnail_id( $this->post->ID );
+
+		if ( $thumbnail_id ) {
+			set_post_thumbnail( $new_post_id, $thumbnail_id );
+		}
+
+		return (int) $thumbnail_id;
+	}
+
+	/**
+	 * Copy post meta from the original media to the duplicated one.
+	 *
+	 * @param int $new_post_id New post ID.
+	 *
+	 * @return void
+	 */
+	protected function copyMeta( $new_post_id ) {
+		$post_meta = get_post_meta( $this->post->ID );
+
+		if ( empty( $post_meta ) ) {
+			return;
+		}
+
+		foreach ( $post_meta as $meta_key => $meta_values ) {
+			// Skip _wp_page_template and _thumbnail_id as they're already handled.
+			if ( '_wp_page_template' === $meta_key || '_thumbnail_id' === $meta_key ) {
+				continue;
+			}
+
+			foreach ( $meta_values as $meta_value ) {
+				add_post_meta( $new_post_id, $meta_key, maybe_unserialize( $meta_value ) );
+			}
+		}
+	}
+
+	/**
+	 * Build the API response payload for a duplicated media item.
+	 *
+	 * @param int $new_post_id  New post ID.
+	 * @param int $thumbnail_id Thumbnail ID copied from the original post.
+	 *
+	 * @return array
+	 */
+	public function buildDuplicateResponse( $new_post_id, $thumbnail_id ) {
+		$new_post = get_post( $new_post_id );
+
+		// Get tags for the new post.
+		$tags      = array();
+		$tag_terms = wp_get_object_terms( $new_post_id, 'pp_video_tag' );
+
+		if ( ! is_wp_error( $tag_terms ) && is_array( $tag_terms ) ) {
+			foreach ( $tag_terms as $tag_term ) {
+				$tags[] = array(
+					'id'   => $tag_term->term_id,
+					'name' => $tag_term->name,
+					'slug' => $tag_term->slug,
+				);
+			}
+		}
+
+		// Get author info.
+		$author_id = (int) get_post_field( 'post_author', $new_post_id );
+
+		// Get poster image from post meta or featured image.
+		$poster_image   = null;
+		$reusable_video = new self( $new_post_id );
+		$video_details  = $reusable_video->getAttributes();
+
+		if ( ! empty( $video_details['poster'] ) ) {
+			$poster_image = $video_details['poster'];
+		} elseif ( $thumbnail_id ) {
+			$poster_image = wp_get_attachment_image_url( $thumbnail_id, 'full' );
+		}
+
+		return array(
+			'message' => __( 'Successfully duplicated.', 'presto-player' ),
+			'media'   => array(
+				'id'           => $new_post_id,
+				'title'        => html_entity_decode( get_the_title( $new_post_id ) ),
+				'post_date'    => $new_post->post_date,
+				'status'       => $new_post->post_status,
+				'shortcode'    => '[presto_player id=' . $new_post_id . ']',
+				'poster_image' => $poster_image,
+				'tags'         => ! empty( $tags ) ? $tags : null,
+				'author'       => array(
+					'id'   => $author_id,
+					'name' => get_the_author_meta( 'display_name', $author_id ),
+				),
+			),
+		);
 	}
 }
