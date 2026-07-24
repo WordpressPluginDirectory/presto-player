@@ -7,6 +7,9 @@
  * @package PrestoPlayer
  */
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
 ?>
 <figure class="wp-block-video presto-block-video <?php echo esc_attr( $data['class'] ); ?> presto-provider-<?php echo sanitize_html_class( $data['provider'] ); ?>" style="<?php echo esc_attr( $data['styles'] ); ?>">
 	<presto-player 
@@ -32,7 +35,7 @@
 		youtube="<?php echo esc_attr( wp_json_encode( $data['youtube'] ) ); ?>"
 		provider-video-id="<?php echo esc_attr( $data['provider_video_id'] ?? '' ); ?>"
 		video-id="<?php echo esc_attr( $data['id'] ?? 0 ); ?>"
-		<?php echo $data['preset']['lazy_load_youtube'] ? 'lazy-load-youtube' : ''; ?>
+		<?php echo ( $data['preset']['lazy_load_youtube'] ?? false ) ? 'lazy-load-youtube' : ''; ?>
 		video-attributes='<?php echo esc_attr( wp_json_encode( ! empty( $data['videoAttributes'] ) ? $data['videoAttributes'] : new stdClass() ) ); ?>'
 		<?php echo $data['playsInline'] ? 'playsinline' : ''; ?>
 		<?php echo $data['autoplay'] ? 'autoplay' : ''; ?>

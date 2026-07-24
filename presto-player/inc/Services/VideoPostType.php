@@ -503,6 +503,7 @@ class VideoPostType {
 			return;
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only admin list-table filter; core admin filters use GET without a nonce.
 		$selected      = isset( $_GET[ $taxonomy ] ) ? absint( $_GET[ $taxonomy ] ) : '';
 		$info_taxonomy = get_taxonomy( $taxonomy );
 
@@ -730,6 +731,12 @@ class VideoPostType {
 			array_merge( array( 'jquery', 'regenerator-runtime' ), $assets['dependencies'] ?? array() ),
 			$assets['version'],
 			true
+		);
+		wp_enqueue_style(
+			'presto-player/toolbar/admin',
+			trailingslashit( PRESTO_PLAYER_PLUGIN_URL ) . 'dist/toolbar.css',
+			array(),
+			$assets['version']
 		);
 	}
 

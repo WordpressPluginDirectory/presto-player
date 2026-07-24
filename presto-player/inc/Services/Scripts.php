@@ -34,6 +34,7 @@ class Scripts {
 		// block assets.
 		add_action( 'enqueue_block_editor_assets', array( $this, 'blockEditorAssets' ) );
 		add_action( 'enqueue_block_assets', array( $this, 'blockAssets' ) );
+		add_filter( 'block_editor_settings_all', array( $this, 'iframeCdnFix' ) );
 
 		// learndash.
 		add_action( 'admin_enqueue_scripts', array( $this, 'learndashAdminScripts' ) );
@@ -190,6 +191,7 @@ class Scripts {
 	 * @return void
 	 */
 	public function elementorPreviewScripts() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only preview-context detection; no state change.
 		if ( ! isset( $_GET['elementor-preview'] ) ) {
 			return;
 		}
@@ -235,8 +237,6 @@ class Scripts {
 			$assets['version'],
 			true
 		);
-		wp_enqueue_style( 'surecart/blocks/admin', trailingslashit( PRESTO_PLAYER_PLUGIN_URL ) . 'dist/blocks.css', array(), $assets['version'] );
-
 		wp_localize_script(
 			'surecart/blocks/admin',
 			'prestoPlayer',
@@ -370,6 +370,8 @@ class Scripts {
 			return true;
 		}
 
+		// Read-only request-context detection for page builders; no state change, so nonce verification does not apply.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		// enable on Elementor.
 		if ( ! empty( $_GET['action'] ) && 'elementor' === $_GET['action'] ) {
 			return true;
@@ -395,6 +397,7 @@ class Scripts {
 		if ( isset( $_GET['et_fb'] ) ) {
 			return true;
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		// do we have the player.
 		return $has_player;
@@ -408,7 +411,7 @@ class Scripts {
 	public function globalStyles() {
 		?>
 		<style>
-			<?php readfile( PRESTO_PLAYER_PLUGIN_DIR . 'src/player/global.css' ); ?>
+			<?php readfile( PRESTO_PLAYER_PLUGIN_DIR . 'src/player/global.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Inlining a static plugin-bundled CSS file from a trusted constant path. ?>
 		</style>
 		<?php
 	}
@@ -432,6 +435,14 @@ class Scripts {
 	 * @return void
 	 */
 	public function blockAssets() {
+		if ( is_admin() ) {
+			$assets = include trailingslashit( PRESTO_PLAYER_PLUGIN_DIR ) . 'dist/blocks.asset.php';
+			// Depend on dashicons so it loads inside the WP 7.0 block editor iframe;
+			// block UIs (e.g. popup trigger picker) use dashicons that the iframe
+			// would otherwise not have.
+			wp_enqueue_style( 'surecart/blocks/admin', trailingslashit( PRESTO_PLAYER_PLUGIN_URL ) . 'dist/blocks.css', array( 'dashicons' ), $assets['version'] );
+		}
+
 		// don't output if it doesn't have our block.
 		if ( ! apply_filters( 'presto_player_load_js', $this->hasPlayer() ) ) {
 			return;
@@ -452,6 +463,44 @@ class Scripts {
 				$this->printFallbackScriptsAndStyles();
 			}
 		);
+	}
+
+	/**
+	 * Fix CDN 403 errors inside the block editor iframe.
+	 *
+	 * WP 7.0+ blob: iframes send no Referer header for cross-origin
+	 * requests — blob: is a "local scheme" per Fetch spec, so browsers
+	 * strip it entirely. CDNs like Bunny.net reject these with 403.
+	 *
+	 * Since the blob: iframe is same-origin with the parent admin page,
+	 * window.top is accessible. Replacing the iframe's XMLHttpRequest
+	 * with window.top.XMLHttpRequest makes HLS.js send requests through
+	 * the parent context, which has a proper HTTP Referer.
+	 *
+	 * Runs in any iframed editor canvas (post editor on WP 6.3+ when all
+	 * blocks are apiVersion 3, site editor, widgets editor) — the injected
+	 * script is only ever executed inside the iframe document, where
+	 * window !== window.top is always true. Only the WP 7.0+ blob: iframe
+	 * actually needs the fix; elsewhere the swap is a same-origin no-op.
+	 * No-op on frontend due to is_admin() check.
+	 *
+	 * @param array<string, mixed> $settings The block editor settings.
+	 * @return array<string, mixed> The filtered block editor settings.
+	 */
+	public function iframeCdnFix( $settings ) {
+		if ( ! is_admin() ) {
+			return $settings;
+		}
+		// WARNING: private WP API (__unstableResolvedAssets) — re-verify on each WP major.
+		if ( isset( $settings['__unstableResolvedAssets']['scripts'] ) ) {
+			$settings['__unstableResolvedAssets']['scripts'] =
+				'<script>try{if(window!==window.top){window.XMLHttpRequest=window.top.XMLHttpRequest;}}catch(e){}</script>'
+				. $settings['__unstableResolvedAssets']['scripts'];
+		} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			// if WP renames the private key this fails silently and Bunny editor previews 403 again — log it.
+			error_log( 'Presto Player: __unstableResolvedAssets missing from editor settings, iframe CDN fix skipped.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- WP_DEBUG-gated diagnostic for a private WP API dependency.
+		}
+		return $settings;
 	}
 
 	/**
